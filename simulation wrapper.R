@@ -60,8 +60,9 @@ dlt.prob(TOX[,,], 3, dlts)
 ###### To simualte data in a trial #############
 ################################################
 
-N = 15
-n.dose = 5
+N = 18
+n.dose = 6
+coh.size = 3
 
 d.alloc = sort(rep(1:n.dose, N/n.dose))
 
@@ -90,7 +91,15 @@ for (j in 1:N){
   #toxscore
   
   Y.grade[[j]] <- Tox
-  Y.tox[[j]] <- list(comb.curr, toxscore)
+  Y.tox[[j]] <- toxscore
 }
 
-do.call(rbind, Y.tox, quote = FALSE)
+
+# calculate mean nTTP for each dose level
+nTTP.bar = NA
+for (i in 1:(N/coh.size)) {
+    index = (i - 1)*coh.size
+    nTTP.bar[i] = mean(unlist(Y.tox[index+(1:coh.size)]))
+}
+
+nTTP.bar
