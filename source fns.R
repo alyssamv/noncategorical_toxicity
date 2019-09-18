@@ -41,16 +41,18 @@ get.thresh <- function(ntox, weights, TOX){
 dlt.prob <- function(TOX, ntox, tox.dlt){
   cp <- function(p) 
   {
-    ev <- do.call(expand.grid,replicate(length(p),0:1,simplify=FALSE))
-    pe <- apply(ev,1,function(x) prod(p*(x==1)+(1-p)*(x==0)))
-    tapply(pe,rowSums(ev),sum)
+    ev <- do.call(expand.grid,replicate(length(p),0:1,simplify=FALSE)) # all permutations (rows) of DLT for each tox type
+    pe <- apply(ev,1,function(x) prod(p*(x==1)+(1-p)*(x==0))) # Law of total prob ; DLT occurs with probability p 
+    tapply(pe,rowSums(ev),sum) # sums probabilities for each group (total # DLTs across tox types)
   }
+  ## probability of DLT for each dose at each tox type
   dlt.matrix <- matrix(0, nrow=nrow(TOX), ncol=d)
   for(i in 1:ntox){
-    xxx <- TOX[,-(1:tox.dlt[i]),i]
-    xxx <- cbind(xxx, 0)
-    dlt.matrix[i,] <- apply(xxx, 1, sum)
+    xxx <- TOX[,-(1:tox.dlt[i]),i] # for the dose and tox type, give only the cols corresponding to the grades that qualify as DLT
+    xxx <- cbind(xxx, 0) # ensures that xxx is a matrix (instead of vector)
+    dlt.matrix[i,] <- apply(xxx, 1, sum) # why sum?
   }
+  ## probability of DLT for each dose across tox types
   ptox <- NULL
   for(i in 1:d){
     ptox[i] <- 1-cp(dlt.matrix[1:ntox,i])[1] #Ptox is probability of DLT at each dose level

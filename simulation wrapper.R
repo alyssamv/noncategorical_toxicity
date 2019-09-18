@@ -4,8 +4,8 @@ ntox <- 3 #Number of unique toxicities
 d <- 6 #Number of dose levels
 
 #### Define the weight Matrix ####
-W <- matrix(c(0.1, 0.35, 0.7, 1.00, #Burden weight for grades 1-4 for toxicity 1
-              0.08, 0.23,  0.6, 0.80, #Burden weight for grades 1-4 for toxicity 2
+W <- matrix(c(0.10, 0.35, 0.70, 1.00, #Burden weight for grades 1-4 for toxicity 1
+              0.08, 0.23, 0.60, 0.80, #Burden weight for grades 1-4 for toxicity 2
               0.00, 0.15, 0.45, 0.80), ##Burden weight for grades 1-4 for toxicity 3
             nrow = ntox, byrow = T)
 
@@ -37,6 +37,7 @@ TOX[,,2] <- matrix(c(0.968, 0.029, 0.002, 0.001, 0.000, #probability of grades 0
                      0.397, 0.258, 0.276, 0.061, 0.008, #probability of grades 0-4 toxicities for dose 5 and toxicity 2 in scenario 1
                      0.260, 0.377, 0.281, 0.073, 0.009),  #probability of grades 0-4 toxicities for dose 6 and toxicity 2 in scenario 1
                    nrow = 6, byrow = T)
+
 TOX[,,3] <- matrix(c(0.907, 0.080, 0.008, 0.000, 0.005, #probability of grades 0-4 toxicities for dose 1 and toxicity 3 in scenario 1
                      0.602, 0.281, 0.035, 0.040, 0.042, #probability of grades 0-4 toxicities for dose 2 and toxicity 3 in scenario 1
                      0.536, 0.208, 0.031, 0.091, 0.134, #probability of grades 0-4 toxicities for dose 3 and toxicity 3 in scenario 1
@@ -49,7 +50,7 @@ TOX[,,3] <- matrix(c(0.907, 0.080, 0.008, 0.000, 0.005, #probability of grades 0
 get.thresh(3, W, TOX)
 
 #Define at which grade of each toxicity is a DLT based on the traditional definition
-dlts <- c(3,3,4) #i.e. A DLT is defined as a grade 3 of toxicity 1, a grade 3 for toxicity 2, and a grade 4 for toxicity 3
+dlts <- c(3, 3, 4) #i.e. A DLT is defined as a grade 3 of toxicity 1, a grade 3 for toxicity 2, and a grade 4 for toxicity 3
 
 #Get the true probability of a least 1 DLT at each dose level
 dlt.prob(TOX[,,], 3, dlts) 
@@ -103,10 +104,15 @@ for (i in 1:n.dose) {
 }
 nTTP.bar
 
+for (j in 1:n.dose) {
+  print(range(Y.tox[which(d.alloc == j)]))
+} ## Does it make sense for each dose level to have a floor of no DLTs?
+
+
+## Distribution of simulated TTP for patients at each dose level
 par(mfrow = c(3,2))
-hist(unlist(Y.tox[which(d.alloc == 1)]), breaks = 30, main = "Dose 1")
-hist(unlist(Y.tox[which(d.alloc == 2)]), breaks = 30, main = "Dose 2")
-hist(unlist(Y.tox[which(d.alloc == 3)]), breaks = 30, main = "Dose 3")
-hist(unlist(Y.tox[which(d.alloc == 4)]), breaks = 30, main = "Dose 4")
-hist(unlist(Y.tox[which(d.alloc == 5)]), breaks = 30, main = "Dose 5")
-hist(unlist(Y.tox[which(d.alloc == 6)]), breaks = 30, main = "Dose 6")
+for (k in 1:n.dose) {
+  hist(unlist(Y.tox[which(d.alloc == k)]), breaks = 30, main = paste0("Dose ", k))
+  abline(v = nTTP.bar[k], lty = 3, lwd = 2)
+}
+
