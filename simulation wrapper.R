@@ -61,7 +61,7 @@ dlt.prob(TOX[,,], 3, dlts)
 ###### To simualte data in a trial #############
 ################################################
 
-N = 6000
+N = 60000
 n.dose = 6
 coh.size = 3
 
@@ -112,7 +112,34 @@ for (j in 1:n.dose) {
 ## Distribution of simulated TTP for patients at each dose level
 par(mfrow = c(3,2))
 for (k in 1:n.dose) {
-  hist(unlist(Y.tox[which(d.alloc == k)]), breaks = 30, main = paste0("Dose ", k))
+  hist(unlist(Y.tox[which(d.alloc == k)]), 
+       prob = TRUE,
+       breaks = 30, 
+       xlim = c(0, 1),
+       main = paste0("Dose ", k),
+       xlab = "Simulated nTTP")
   abline(v = nTTP.bar[k], lty = 3, lwd = 2)
 }
 
+
+## Test whether beta distribution models simulated data well
+# estimate parameters of beta using mean and variance
+# Use mean toxicity scores: 0.04078 0.15104 0.27267 0.55149 0.72607 0.84014
+estBetaParams <- function(mu, var) {
+  alpha <- ((1 - mu) / var - 1 / mu) * mu ^ 2
+  beta <- alpha * (1 / mu - 1)
+  return(params = list(alpha = alpha, beta = beta))
+}
+
+# m = c(0.04078, 0.15104, 0.27267, 0.55149, 0.72607, 0.84014)
+v = 0.01
+
+par(mfrow = c(3, 2))
+for (i in 1:n.dose) {
+  ab = estBetaParams(nTTP.bar[i], v)
+  p = rbeta(N, ab$alpha, ab$beta)
+  hist(p, prob = TRUE, main = paste0("Dose ", i),
+       xlim = c(0, 1),
+       xlab = paste0("Beta(", round(ab$alpha, 3), ", ", round(ab$beta, 3), ")"))
+  abline(v = nTTP.bar[i], lty = 3, lwd = 2)
+}
