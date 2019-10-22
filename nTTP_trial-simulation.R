@@ -1,10 +1,11 @@
 source(file.path(getwd(), "nTTP_iAdapt-fns.R"))
+library(tidyverse)
 
 p1 = 0.35 # unsafe nTTP (null hypothesis)
 p2 = 0.1 # acceptable nTTP (alternative hypothesis)
 sigma = 0.15 # variance of nTTP on each dose, assumed constant and estimated form simulated nTTP data
-tru_tox = c(0.015, 0.05, 0.1, 0.2, 027, 0.32) # true (approx) nTTP for each dose, taken from simulations
-# DLT_rate = c(0.01060, 0.07725, 0.14890, 0.28190, 0.40040, 0.48920) # scenario equivalent for binary tox
+tru_tox = c(0.015, 0.05, 0.1, 0.2, 0.27, 0.32) # true (approx) nTTP for each dose, taken from simulations
+DLT_rate = c(0.01, 0.07, 0.15, 0.28, 0.40, 0.49) # scenario equivalent for binary tox
 
 coh.size = 3 # number pts per dose
 ntox <- 3 # Number of unique toxicities
@@ -59,11 +60,12 @@ tox.profile.nTTP(dose = d, # number of doses
                  ntox = ntox) # number of toxicity types
 
 
-## simulate N times
+######### simulate N times #########
 K = 2
 N = 1e3
 
-stg1 <- list()
+## Using nTTP
+stg1.nTTP <- list()
 for (i in 1:N) {
   sim = tox.profile.nTTP(dose = d,
                          p1 = p1,
@@ -73,6 +75,28 @@ for (i in 1:N) {
                          W = W,
                          TOX = TOX,
                          ntox = ntox)
+  
+  # is the dose safe (1) or unsafe (0)? (not including weak evidence)
+  stg1.nTTP[[i]] = ifelse(sim[,4] >= K, 1, 0) 
+  if (length(stg1.nTTP[[i]]) < d) {
+    # designate for all 6 doses (allocation stops if dose declared unsafe)
+    stg1.nTTP[[i]] = append(stg1.nTTP[[i]], rep(0, d - length(stg1.nTTP[[i]])))
+  }
+  
+  # stg1[[i]]$w.weak = ifelse(sim[,4] >= K, 1, 
+  #                        ifelse(sim[,4] <= 1/K, 0, NA))
+  # 
+}
+
+## Binary tox equivalent
+stg1 <- list()
+for (i in 1:N) {
+  sim = iAdapt::tox.profile(dose = d,
+                            dose.tox = DLT_rate,
+                            p1 = p1,
+                            p2 = p2,
+                            K = K,
+                            coh.size = coh.size)
   
   # is the dose safe (1) or unsafe (0)? (not including weak evidence)
   stg1[[i]] = ifelse(sim[,4] >= K, 1, 0) 
@@ -86,5 +110,13 @@ for (i in 1:N) {
   # 
 }
 
-# % of times dose is declared safe
-colMeans(do.call(rbind, stg1))
+
+# % of times dose is declared safe with nTTP
+rbind(tru_tox, colMeans(do.call(rbind, stg1.nTTP))) %>%
+  `rownames<-`(c("True nTTP", "Rate declared safe")) %>%
+  knitr::kable(row.names = TRUE, col.names = 1:6)
+# % of times dose is declared safe for binary toxicity
+rbind(DLT_rate, colMeans(do.call(rbind, stg1))) %>%
+  `rownames<-`(c("True DLT rate", "Rate declared safe")) %>%
+  knitr::kable(row.names = TRUE, col.names = 1:6)
+
