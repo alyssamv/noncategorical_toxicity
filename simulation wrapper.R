@@ -98,11 +98,24 @@ for (j in 1:N) {
 
 # calculate mean nTTP for each dose level
 nTTP.bar = NA
+
 for (i in 1:n.dose) {
     index = which(d.alloc == i) # location corresponding to given dose
     nTTP.bar[i] = mean(unlist(Y.tox[index])) # mean nTTP for given dose
 }
 nTTP.bar
+
+# number of DLTs equivalent of sceario above
+DLTs.bar = NA
+t = c()
+for (i in 1:n.dose) {
+  index = which(d.alloc == i) # location corresponding to given dose
+  for (j in index) {
+    t[j] = sum(Y.grade[[j]] >= 3)
+  }
+  DLTs.bar[i] = mean(t)
+}
+DLTs.bar
 
 for (j in 1:n.dose) {
   print(range(Y.tox[which(d.alloc == j)]))
