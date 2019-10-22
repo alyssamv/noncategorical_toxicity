@@ -3,6 +3,8 @@ source(file.path(getwd(), "nTTP_iAdapt-fns.R"))
 p1 = 0.35 # unsafe nTTP (null hypothesis)
 p2 = 0.1 # acceptable nTTP (alternative hypothesis)
 sigma = 0.15 # variance of nTTP on each dose, assumed constant and estimated form simulated nTTP data
+tru_tox = c(0.015, 0.05, 0.1, 0.2, 027, 0.32) # true (approx) nTTP for each dose, taken from simulations
+# DLT_rate = c(0.01060, 0.07725, 0.14890, 0.28190, 0.40040, 0.48920) # scenario equivalent for binary tox
 
 coh.size = 3 # number pts per dose
 ntox <- 3 # Number of unique toxicities
@@ -47,11 +49,42 @@ TOX[,,3] <- matrix(c(0.907, 0.080, 0.008, 0.000, 0.005, #probability of grades 0
 ############# iAdapt::tox.profile() for nTTP ##############
 ###########################################################
 
-tox.profile.nTTP(dose = d,
-                 p1 = p1,
-                 p2 = p2,
-                 K = 2,
-                 coh.size = coh.size,
-                 W = W,
-                 TOX = TOX,
-                 ntox = ntox)
+tox.profile.nTTP(dose = d, # number of doses
+                 p1 = p1, # unsafe nTTP
+                 p2 = p2, # acceptable nTTP
+                 K = 2, # LR threshold
+                 coh.size = coh.size, # n per dose
+                 W = W, # weight matrix for TTP
+                 TOX = TOX, # tox probabilities for each toxicity type
+                 ntox = ntox) # number of toxicity types
+
+
+## simulate N times
+K = 2
+N = 1e3
+
+stg1 <- list()
+for (i in 1:N) {
+  sim = tox.profile.nTTP(dose = d,
+                         p1 = p1,
+                         p2 = p2,
+                         K = K,
+                         coh.size = coh.size,
+                         W = W,
+                         TOX = TOX,
+                         ntox = ntox)
+  
+  # is the dose safe (1) or unsafe (0)? (not including weak evidence)
+  stg1[[i]] = ifelse(sim[,4] >= K, 1, 0) 
+  if (length(stg1[[i]]) < d) {
+    # designate for all 6 doses (allocation stops if dose declared unsafe)
+    stg1[[i]] = append(stg1[[i]], rep(0, d - length(stg1[[i]])))
+  }
+  
+  # stg1[[i]]$w.weak = ifelse(sim[,4] >= K, 1, 
+  #                        ifelse(sim[,4] <= 1/K, 0, NA))
+  # 
+}
+
+# % of times dose is declared safe
+colMeans(do.call(rbind, stg1))
