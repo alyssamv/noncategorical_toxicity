@@ -93,8 +93,8 @@ stg1 <- list()
 for (i in 1:N) {
   sim = iAdapt::tox.profile(dose = d,
                             dose.tox = DLT_rate,
-                            p1 = p1,
-                            p2 = p2,
+                            p1 = 0.40,
+                            p2 = 0.15,
                             K = K,
                             coh.size = coh.size)
   
