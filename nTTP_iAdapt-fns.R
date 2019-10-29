@@ -34,13 +34,16 @@ nTTP.sim <- function(W, TOX, ntox, dose){
 
 
 
+#### NOTE: no 'dose.tox' object needed for nTTP case ####
 
 # dose  number of doses to be tested (scalar)
-# dose.tox  vector of true toxicities for each dose. Values range from 0 - 1.
 # p1  toxicity under null (unsafe DLT rate). Values range from 0 - 1.
 # p2  toxicity under alternative (safe DLT rate). Values range from 0 - 1; p1 > p2
 # K  threshold for LR. Takes integer values: 1,2,...(recommended K=2)
 # coh.size  cohort size (number of patients) per dose (Stage 1) 
+# W  weight matrix for toxicities
+# TOX  probability of toxicity grades for each toxicity type
+# ntox  number of toxicity types
 
 tox.profile.nTTP <- function(dose, p1, p2, K, coh.size, W, TOX, ntox){ 
   
@@ -76,3 +79,248 @@ tox.profile.nTTP <- function(dose, p1, p2, K, coh.size, W, TOX, ntox){
   }       
   return(matrix(x, ncol = 4, byrow = TRUE))
 } 
+
+
+# dose  number of doses to be tested (scalar)
+# p1  toxicity under null (unsafe DLT rate). Values range from 0 - 1.
+# p2  toxicity under alternative (safe DLT rate). Values range from 0 - 1; p1 > p2
+# K  threshold for LR. Takes integer values: 1,2,...(recommended K=2)
+# coh.size  cohort size (number of patients) per dose (Stage 1) 
+# W  weight matrix for toxicities
+# TOX  probability of toxicity grades for each toxicity type
+# ntox  number of toxicity types
+
+safe.dose.nTTP <- function(dose, p1, p2, K, coh.size, W, TOX, ntox) {
+  
+  res <- tox.profile.nTTP(dose, p1, p2, K, coh.size, W, TOX, ntox)
+  alloc.total <- sort(rep(res[, 1], coh.size))
+  n1 <- nrow(res) * coh.size
+  unsafe.dose <- which(res[, 4] <= (1/K))
+  if (length(unsafe.dose) == 0) {
+    alloc.safe <- res[, 1:2]
+  }
+  else {
+    alloc.safe <- res[res[, 1] != unsafe.dose, 1:2]
+  }
+  return(list(alloc.safe = alloc.safe, alloc.total = alloc.total, 
+              n1 = n1))
+}
+
+
+
+eff.stg1.nTTP <- function(dose, p1, p2, K, coh.size, m, v, nbb = 100, W, TOX, ntox) {
+  
+  res <- safe.dose.nTTP(dose, p1, p2, K, coh.size, W, TOX, ntox)
+  d.alloc <- res$alloc.total
+  val.safe <- res$alloc.safe
+  Y.safe <- d.safe <- tox.safe <- Y.alloc <- NULL
+  n1 <- res$n1
+  for (i in 1:length(d.alloc)) {
+    ab <- beta.ab(m[d.alloc[i]]/100, v[d.alloc[i]])
+    p <- stats::rbeta(1, ab$a, ab$b)
+    Y.alloc[i] <- 100 * stats::rbinom(1, nbb, p)/nbb
+  }
+  if (length(val.safe) > 2) {
+    d.safe <- sort(rep(val.safe[, 1], coh.size))
+    tox.safe <- res$alloc.safe[, 2]
+    Y.safe <- Y.alloc[1:length(d.safe)]
+  }
+  else if (length(val.safe) == 2) {
+    d.safe <- sort(rep(val.safe[1], coh.size))
+    tox.safe <- res$alloc.safe[2]
+    Y.safe <- Y.alloc[1:length(d.safe)]
+  }
+  else {
+    Y.safe <- d.safe <- NULL
+    tox.safe <- res$alloc.safe[, 2]
+  }
+  return(list(Y.safe = Y.safe, d.safe = d.safe, tox.safe = tox.safe, 
+              n1 = n1, Y.alloc = Y.alloc, d.alloc = d.alloc))
+}
+
+
+beta.ab <- function(m, v) {
+  
+  a <- seq(0.5, 20, 0.01)                            # a is a seq of alpha in beta distr.
+  b <- a * (1 - m) / m
+  
+  vfit  <- a * b / ((a + b + 1) * (a + b)^2)
+  diff  <- abs(vfit - v)
+  index <- (1:length(diff))[diff == min(diff)]       # return the index of the min var.
+  
+  return(list(a = a[index],
+              b = b[index]))                         # return alpha and beta for the min.var.
+}
+
+
+
+rand.stg2.nTTP <- function (dose, p1, p2, K, coh.size, m, v, N, stop.rule = 9, 
+          cohort = 1, samedose = TRUE, nbb = 100, W, TOX, ntox) 
+{
+  res <- eff.stg1.nTTP(dose, p1, p2, K, coh.size, m, v, nbb, W, TOX, ntox)
+  dose   <- c(1:dose) 
+  yk.safe <- res$Y.safe
+  yk.final <- res$Y.alloc
+  dk.safe <- res$d.safe
+  dk.final <- dk1 <- dk2 <- res$d.alloc
+  toxk <- res$tox.safe
+  n1 <- res$n1
+  nmore <- N - n1
+  nd <- length(unique(dk.safe))
+  rp <- NULL
+  stop <- 0
+  if (nd == 0) {
+    yk.final <- yk.final
+    dk.final <- dk.final
+    stop <- 1
+  }
+  if (nd == 1) {
+    extra <- stop.rule - length(dk.safe)
+    ab <- beta.ab(m[1]/100, v[1])
+    y.extra <- 100 * stats::rbinom(extra, nbb, stats::rbeta(1, 
+                                                            ab$a, ab$b))/nbb
+    yk.final <- c(yk.final, y.extra)
+    dk.final <- c(dk.final, rep(1, extra))
+    stop <- 1
+  }
+  if (nd > 1) {
+    coh.toxk <- cbind(matrix(dk.safe, ncol = coh.size, byrow = TRUE)[, 
+                                                                     1], toxk)
+    for (k in 1:nmore) {
+      if (stop == 0) {
+        reg <- stats::lm(log(yk.safe + 1) ~ factor(dk.safe))
+        fit <- as.vector(reg$fitted.values)
+        dose.unique <- duplicated(dk.safe)
+        fitp <- exp(fit)
+        fitp <- fitp[dose.unique == FALSE]
+        rp <- fitp/sum(fitp)
+        rp <- ifelse(rp < 0.02, 0.02, rp)
+        dj <- stats::rmultinom(1, 1, prob = rp)
+        if (samedose) {
+          dj <- rep((1:length(dj))[dj == 1], cohort)
+        }
+        else {
+          dosemat <- as.vector(dj * matrix(1:nd, ncol = cohort, 
+                                           nrow = nd))
+          dj <- dosemat[dosemat > 0]
+        }
+        ab <- beta.ab(m[dj]/100, v[dj])
+        p <- stats::rbeta(1, ab$a, ab$b)
+        yj <- 100 * stats::rbinom(1, nbb, p)/nbb
+        toxj <- nTTP.sim(W = W, 
+                         TOX = TOX, 
+                         ntox = ntox, 
+                         dose = dose[dj]) # stats::rbinom(1, size = 1, dose.tox[dj])
+        coh.toxj <- c(dj, toxj)
+        yk.safe <- c(yk.safe, yj)
+        yk.final <- c(yk.final, yj)
+        dk.safe <- c(dk.safe, dj)
+        dk.final <- c(dk.final, dj)
+        coh.toxk <- rbind(coh.toxk, coh.toxj)
+        toxk <- c(toxk, toxj)
+        n.obsk <- table(dk.safe)
+        if (toxj == 0) {
+          dk.safe <- dk.safe
+          yk.safe <- yk.safe
+        }
+        else {
+          LR.table.temp <- table(coh.toxk[, 1], coh.toxk[, 2])
+          if (ncol(LR.table.temp) == 2) {
+            LR.table <- cbind(LR.table.temp[, 2], n.obsk)
+          }
+          else {
+            LR.table <- cbind(LR.table.temp[, 1], n.obsk)
+          }
+          loglik.p2 <- NULL
+          loglik.p1 <- NULL
+          lik.diff <- NULL
+          accept.dose <- NULL
+          for (j in 1:nrow(LR.table)) {
+            loglik.p2[j] <- LR.table[j, 1] * log(p2) + 
+              (LR.table[j, 2] - LR.table[j, 1]) * log(1 - 
+                                                        p2)
+            loglik.p1[j] <- LR.table[j, 1] * log(p1) + 
+              (LR.table[j, 2] - LR.table[j, 1]) * log(1 - 
+                                                        p1)
+            lik.diff[j] <- exp(loglik.p2[j] - loglik.p1[j])
+            accept.dose[j] <- ifelse(lik.diff[j] > (1/K), 
+                                     1, 0)
+          }
+          dk.safe[dk.safe >= which(accept.dose == 0)] <- NA
+          new.model <- cbind(dk.safe, yk.safe)
+          new.model <- stats::na.omit(new.model)
+          dk.safe <- new.model[, 1]
+          yk.safe <- new.model[, 2]
+          yk.final <- yk.final
+          dk.final <- dk.final
+          coh.toxk <- coh.toxk[!apply(coh.toxk, 1, function(x) {
+            any(x >= which(accept.dose == 0))
+          }), ]
+        }
+        if (length(unique(dk.safe)) > 1) {
+          dk.safe <- dk.safe
+          yk.safe <- yk.safe
+          dk.final <- dk.final
+          yk.final <- yk.final
+        }
+        if (length(unique(dk.safe)) == 1) {
+          new.size <- nmore + length(dk2)
+          length.dk1 <- length(dk.final)
+          if ((length(dk.safe) < stop.rule) && (length.dk1 < 
+                                                new.size)) {
+            extra.one <- min(new.size - length.dk1, 
+                             stop.rule - length(dk.safe))
+            ab <- beta.ab(m[1]/100, v[1])
+            yj.one <- 100 * stats::rbinom(extra.one, 
+                                          nbb, stats::rbeta(1, ab$a, ab$b))/nbb
+            yk.final <- c(yk.final, yj.one)
+            dk.final <- c(dk.final, rep(1, extra.one))
+            stop <- 1
+          }
+          else {
+            dk.final <- dk.final
+            yk.final <- yk.final
+            stop <- 1
+          }
+        }
+        if (length(unique(dk.safe)) < 1) {
+          dk.final <- dk.final
+          yk.final <- yk.final
+          stop <- 1
+        }
+      }
+      else {
+        dk.final <- dk.final
+        yk.final <- yk.final
+      }
+    }
+  }
+  return(list(Y.final = yk.final, d.final = dk.final, n1 = n1))
+}
+
+
+sim.trials.nTTP <- function (numsims, dose, p1, p2, K, coh.size, m, v, 
+                             N, stop.rule = 9, cohort = 1, samedose = TRUE, nbb = 100, W, TOX, ntox) 
+{
+  sim.yk <- sim.dk <- matrix(NA, nrow = numsims, ncol = N)
+  sim.doses <- matrix(NA, nrow = numsims, ncol = dose)
+  for (i in 1:numsims) {
+    fstudy.out <- rand.stg2.nTTP(dose, p1, p2, K, coh.size, 
+                            m, v, N, stop.rule, cohort, samedose, nbb, W, TOX, ntox)
+    n.safe <- max(fstudy.out$d.final[(fstudy.out$n1 + 1):length(fstudy.out$d.final)], 
+                  na.rm = TRUE)
+    sim.doses[i, ] <- c(rep(1, n.safe), rep(0, dose - n.safe))
+    if (length(fstudy.out$Y.final) < N) {
+      sim.yk[i, ] <- c(fstudy.out$Y.final, rep(NA, N - 
+                                                 length(fstudy.out$Y.final)))
+      sim.dk[i, ] <- c(fstudy.out$d.final, rep(NA, N - 
+                                                 length(fstudy.out$d.final)))
+    }
+    else {
+      sim.yk[i, ] <- fstudy.out$Y.final
+      sim.dk[i, ] <- fstudy.out$d.final
+    }
+    cat(i, "\n")
+  }
+  return(list(sim.Y = sim.yk, sim.d = sim.dk, safe.d = sim.doses))
+}
