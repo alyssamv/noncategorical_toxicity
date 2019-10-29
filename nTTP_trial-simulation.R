@@ -60,7 +60,9 @@ tox.profile.nTTP(dose = d, # number of doses
                  ntox = ntox) # number of toxicity types
 
 
-######### simulate N times #########
+###########################################################
+########## simulation: compare nTTP and binary ############
+###########################################################
 K = 2
 N = 1e3
 
@@ -93,8 +95,8 @@ stg1 <- list()
 for (i in 1:N) {
   sim = iAdapt::tox.profile(dose = d,
                             dose.tox = DLT_rate,
-                            p1 = 0.40,
-                            p2 = 0.15,
+                            p1 = p1,
+                            p2 = p2,
                             K = K,
                             coh.size = coh.size)
   
@@ -110,7 +112,7 @@ for (i in 1:N) {
   # 
 }
 
-
+print("Cohort of 3")
 # % of times dose is declared safe with nTTP
 rbind(tru_tox, colMeans(do.call(rbind, stg1.nTTP))) %>%
   `rownames<-`(c("True nTTP", "Rate declared safe")) %>%
@@ -120,3 +122,204 @@ rbind(DLT_rate, colMeans(do.call(rbind, stg1))) %>%
   `rownames<-`(c("True DLT rate", "Rate declared safe")) %>%
   knitr::kable(row.names = TRUE, col.names = 1:6)
 
+
+
+###########################################################
+####################### Cohort of 1 #######################
+###########################################################
+
+coh.size = 1 # number pts per dose
+## Using nTTP
+stg1.nTTP <- list()
+for (i in 1:N) {
+  sim = tox.profile.nTTP(dose = d,
+                         p1 = p1,
+                         p2 = p2,
+                         K = K,
+                         coh.size = coh.size,
+                         W = W,
+                         TOX = TOX,
+                         ntox = ntox)
+  
+  # is the dose safe (1) or unsafe (0)? (not including weak evidence)
+  stg1.nTTP[[i]] = ifelse(sim[,4] >= K, 1, 0) 
+  if (length(stg1.nTTP[[i]]) < d) {
+    # designate for all 6 doses (allocation stops if dose declared unsafe)
+    stg1.nTTP[[i]] = append(stg1.nTTP[[i]], rep(0, d - length(stg1.nTTP[[i]])))
+  }
+  
+  # stg1[[i]]$w.weak = ifelse(sim[,4] >= K, 1, 
+  #                        ifelse(sim[,4] <= 1/K, 0, NA))
+  # 
+}
+
+## Binary tox equivalent
+stg1 <- list()
+for (i in 1:N) {
+  K = 1 # with cohort of 1, need K = 1
+  sim = iAdapt::tox.profile(dose = d,
+                            dose.tox = DLT_rate,
+                            p1 = p1,
+                            p2 = p2,
+                            K = K, 
+                            coh.size = coh.size)
+  
+  # is the dose safe (1) or unsafe (0)? (not including weak evidence)
+  stg1[[i]] = ifelse(sim[,4] >= K, 1, 0) 
+  if (length(stg1[[i]]) < d) {
+    # designate for all 6 doses (allocation stops if dose declared unsafe)
+    stg1[[i]] = append(stg1[[i]], rep(0, d - length(stg1[[i]])))
+  }
+  
+  # stg1[[i]]$w.weak = ifelse(sim[,4] >= K, 1, 
+  #                        ifelse(sim[,4] <= 1/K, 0, NA))
+  # 
+}
+
+print("Cohort of 1")
+# % of times dose is declared safe with nTTP
+rbind(tru_tox, colMeans(do.call(rbind, stg1.nTTP))) %>%
+  `rownames<-`(c("True nTTP", "Rate declared safe")) %>%
+  knitr::kable(row.names = TRUE, col.names = 1:6)
+# % of times dose is declared safe for binary toxicity
+rbind(DLT_rate, colMeans(do.call(rbind, stg1))) %>%
+  `rownames<-`(c("True DLT rate", "Rate declared safe")) %>%
+  knitr::kable(row.names = TRUE, col.names = 1:6)
+
+
+###########################################################
+###################### Low toxicity #######################
+###########################################################
+
+p1 = 0.15 # unsafe nTTP (null hypothesis)
+p2 = 0.05 # acceptable nTTP (alternative hypothesis)
+coh.size = 3
+
+## Using nTTP
+stg1.nTTP <- list()
+for (i in 1:N) {
+  K = 2
+  
+  sim = tox.profile.nTTP(dose = d,
+                         p1 = p1,
+                         p2 = p2,
+                         K = K,
+                         coh.size = coh.size,
+                         W = W,
+                         TOX = TOX,
+                         ntox = ntox)
+  
+  # is the dose safe (1) or unsafe (0)? (not including weak evidence)
+  stg1.nTTP[[i]] = ifelse(sim[,4] >= K, 1, 0) 
+  if (length(stg1.nTTP[[i]]) < d) {
+    # designate for all 6 doses (allocation stops if dose declared unsafe)
+    stg1.nTTP[[i]] = append(stg1.nTTP[[i]], rep(0, d - length(stg1.nTTP[[i]])))
+  }
+  
+  # stg1[[i]]$w.weak = ifelse(sim[,4] >= K, 1, 
+  #                        ifelse(sim[,4] <= 1/K, 0, NA))
+  # 
+}
+
+## Binary tox equivalent
+stg1 <- list()
+for (i in 1:N) {
+  K = 1
+  
+  sim = iAdapt::tox.profile(dose = d,
+                            dose.tox = DLT_rate,
+                            p1 = p1,
+                            p2 = p2,
+                            K = K,
+                            coh.size = coh.size)
+  
+  # is the dose safe (1) or unsafe (0)? (not including weak evidence)
+  stg1[[i]] = ifelse(sim[,4] >= K, 1, 0) 
+  if (length(stg1[[i]]) < d) {
+    # designate for all 6 doses (allocation stops if dose declared unsafe)
+    stg1[[i]] = append(stg1[[i]], rep(0, d - length(stg1[[i]])))
+  }
+  
+  # stg1[[i]]$w.weak = ifelse(sim[,4] >= K, 1, 
+  #                        ifelse(sim[,4] <= 1/K, 0, NA))
+  # 
+}
+
+print("Low toxicity")
+# % of times dose is declared safe with nTTP
+rbind(tru_tox, colMeans(do.call(rbind, stg1.nTTP))) %>%
+  `rownames<-`(c("True nTTP", "Rate declared safe")) %>%
+  knitr::kable(row.names = TRUE, col.names = 1:6)
+# % of times dose is declared safe for binary toxicity
+rbind(DLT_rate, colMeans(do.call(rbind, stg1))) %>%
+  `rownames<-`(c("True DLT rate", "Rate declared safe")) %>%
+  knitr::kable(row.names = TRUE, col.names = 1:6)
+
+
+###########################################################
+###################### High toxicity ######################
+###########################################################
+
+p1 = 0.5 # unsafe nTTP (null hypothesis)
+p2 = 0.3 # acceptable nTTP (alternative hypothesis)
+coh.size = 3
+
+## Using nTTP
+stg1.nTTP <- list()
+for (i in 1:N) {
+  K = 2
+  
+  sim = tox.profile.nTTP(dose = d,
+                         p1 = p1,
+                         p2 = p2,
+                         K = K,
+                         coh.size = coh.size,
+                         W = W,
+                         TOX = TOX,
+                         ntox = ntox)
+  
+  # is the dose safe (1) or unsafe (0)? (not including weak evidence)
+  stg1.nTTP[[i]] = ifelse(sim[,4] >= K, 1, 0) 
+  if (length(stg1.nTTP[[i]]) < d) {
+    # designate for all 6 doses (allocation stops if dose declared unsafe)
+    stg1.nTTP[[i]] = append(stg1.nTTP[[i]], rep(0, d - length(stg1.nTTP[[i]])))
+  }
+  
+  # stg1[[i]]$w.weak = ifelse(sim[,4] >= K, 1, 
+  #                        ifelse(sim[,4] <= 1/K, 0, NA))
+  # 
+}
+
+## Binary tox equivalent
+stg1 <- list()
+for (i in 1:N) {
+  K = 2
+  
+  sim = iAdapt::tox.profile(dose = d,
+                            dose.tox = DLT_rate,
+                            p1 = p1,
+                            p2 = p2,
+                            K = K,
+                            coh.size = coh.size)
+  
+  # is the dose safe (1) or unsafe (0)? (not including weak evidence)
+  stg1[[i]] = ifelse(sim[,4] >= K, 1, 0) 
+  if (length(stg1[[i]]) < d) {
+    # designate for all 6 doses (allocation stops if dose declared unsafe)
+    stg1[[i]] = append(stg1[[i]], rep(0, d - length(stg1[[i]])))
+  }
+  
+  # stg1[[i]]$w.weak = ifelse(sim[,4] >= K, 1, 
+  #                        ifelse(sim[,4] <= 1/K, 0, NA))
+  # 
+}
+
+print("High toxicity")
+# % of times dose is declared safe with nTTP
+rbind(tru_tox, colMeans(do.call(rbind, stg1.nTTP))) %>%
+  `rownames<-`(c("True nTTP", "Rate declared safe")) %>%
+  knitr::kable(row.names = TRUE, col.names = 1:6)
+# % of times dose is declared safe for binary toxicity
+rbind(DLT_rate, colMeans(do.call(rbind, stg1))) %>%
+  `rownames<-`(c("True DLT rate", "Rate declared safe")) %>%
+  knitr::kable(row.names = TRUE, col.names = 1:6)
