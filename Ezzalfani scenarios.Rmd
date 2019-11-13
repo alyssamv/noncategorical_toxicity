@@ -1,0 +1,300 @@
+---
+title: "Percent allocation per dose, using nTTP under different efficacy scenarios"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, results = FALSE, warning = FALSE, message = FALSE)
+source(file.path(getwd(), "nTTP_iAdapt-fns.R"))
+library(tidyverse)
+library(iAdapt)
+```
+
+```{r, echo=TRUE}
+p1 = 0.35 # unsafe nTTP (null hypothesis)
+p2 = 0.1 # acceptable nTTP (alternative hypothesis)
+sigma = 0.15 # variance of nTTP on each dose, assumed constant and estimated form simulated nTTP data
+tru_tox = c(0.015, 0.05, 0.1, 0.2, 0.27, 0.32) # true (approx) nTTP for each dose, taken from simulations
+DLT_rate = c(0.01, 0.07, 0.15, 0.28, 0.40, 0.49) # scenario equivalent for binary tox
+
+coh.size = 3 # number pts per dose
+ntox <- 3 # Number of unique toxicities
+d <- 6 # Number of dose levels
+N <- 25 # maximum number of patients
+
+# Efficacy(equal) variance per dose
+v <- rep(0.01, 6) 
+
+
+#### Define the weight Matrix
+W <- matrix(c(0.10, 0.35, 0.70, 1.00, # Burden weight for grades 1-4 for toxicity 1
+              0.08, 0.23, 0.60, 0.80, # Burden weight for grades 1-4 for toxicity 2
+              0.00, 0.15, 0.45, 0.80), ## Burden weight for grades 1-4 for toxicity 3
+            nrow = ntox, byrow = T)
+
+#### Define array to hold toxicitiy probabilities 
+TOX <- array(NA, c(d, 5, ntox)) 
+
+# Scenario 1 = from Ezzalfani et al. paper
+TOX[,,1] <- matrix(c(0.791, 0.172, 0.032, 0.004, 0.001, 
+                     0.738, 0.195, 0.043, 0.015, 0.009, 
+                     0.685, 0.190, 0.068, 0.044, 0.013, 
+                     0.662, 0.200, 0.078, 0.046, 0.014, 
+                     0.605, 0.223, 0.081, 0.071, 0.020, 
+                     0.390, 0.307, 0.201, 0.074, 0.028), 
+                   nrow = 6, byrow = T)
+
+TOX[,,2] <- matrix(c(0.968, 0.029, 0.002, 0.001, 0.000, 
+                     0.763, 0.192, 0.006, 0.039, 0.000, 
+                     0.762, 0.183, 0.041, 0.010, 0.004, 
+                     0.682, 0.195, 0.108, 0.010, 0.005, 
+                     0.397, 0.258, 0.276, 0.061, 0.008, 
+                     0.260, 0.377, 0.281, 0.073, 0.009), 
+                   nrow = 6, byrow = T)
+
+TOX[,,3] <- matrix(c(0.907, 0.080, 0.008, 0.000, 0.005, 
+                     0.602, 0.281, 0.035, 0.040, 0.042, 
+                     0.536, 0.208, 0.031, 0.091, 0.134, 
+                     0.015, 0.134, 0.240, 0.335, 0.276, 
+                     0.005, 0.052, 0.224, 0.372, 0.347, 
+                     0.004, 0.022, 0.223, 0.345, 0.406), 
+                   nrow = 6, byrow = T)
+
+```
+
+
+```{r scenario1}
+# Vector of true mean efficacies per dose (here mean percent persistence per dose)
+m1 <- c(10, 20, 30, 40, 70, 90)   # added last efficacy value for 6th dose       
+
+K = 2
+sims = 1e2
+
+## Using nTTP
+nTTP_1 <- sim.trials.nTTP(numsims = sims,
+                          dose = d,
+                          p1 = p1,
+                          p2 = p2,
+                          K = K,
+                          coh.size = coh.size,
+                          m = m1,
+                          v = v,
+                          N = N,
+                          W = W,
+                          TOX = TOX,
+                          ntox = ntox)
+nTTP_1.pct_alloc = sim.summary.new(nTTP_1, print = FALSE)
+
+## Binary tox equivalent
+stg1_1 <- iAdapt::sim.trials(numsims = sims,
+                             dose = d,
+                             dose.tox = DLT_rate,
+                             p1 = p1,
+                             p2 = p2,
+                             K = K,
+                             coh.size = coh.size,
+                             m = m1,
+                             v = v,
+                             N = N)
+stg1_1.pct_alloc = sim.summary.new(stg1_1, print = FALSE)
+
+
+```
+
+
+```{r scenario2}
+# Vector of true mean efficacies per dose (here mean percent persistence per dose)
+m2 <- c(50, 50, 50, 50, 50, 50)   
+
+## Using nTTP
+## Using nTTP
+nTTP_2 <- sim.trials.nTTP(numsims = sims,
+                          dose = d,
+                          p1 = p1,
+                          p2 = p2,
+                          K = K,
+                          coh.size = coh.size,
+                          m = m2,
+                          v = v,
+                          N = N,
+                          W = W,
+                          TOX = TOX,
+                          ntox = ntox)
+nTTP_2.pct_alloc = sim.summary.new(nTTP_2, print = FALSE)
+
+
+## Binary tox equivalent
+stg1_2 <- iAdapt::sim.trials(numsims = sims,
+                             dose = d,
+                             dose.tox = DLT_rate,
+                             p1 = p1,
+                             p2 = p2,
+                             K = K,
+                             coh.size = coh.size,
+                             m = m2,
+                             v = v,
+                             N = N)
+stg1_2.pct_alloc = sim.summary.new(stg1_2, print = FALSE)
+
+```
+
+```{r scenario3}
+# Vector of true mean efficacies per dose (here mean percent persistence per dose)
+m3 <- c(20, 50, 80, 80, 80, 80)   # added last efficacy value for 6th dose   
+
+## Using nTTP
+nTTP_3 <- sim.trials.nTTP(numsims = sims,
+                          dose = d,
+                          p1 = p1,
+                          p2 = p2,
+                          K = K,
+                          coh.size = coh.size,
+                          m = m3,
+                          v = v,
+                          N = N,
+                          W = W,
+                          TOX = TOX,
+                          ntox = ntox)
+nTTP_3.pct_alloc = sim.summary.new(nTTP_3, print = FALSE)
+
+
+## Binary tox equivalent
+stg1_3 <- iAdapt::sim.trials(numsims = sims,
+                             dose = d,
+                             dose.tox = DLT_rate,
+                             p1 = p1,
+                             p2 = p2,
+                             K = K,
+                             coh.size = coh.size,
+                             m = m3,
+                             v = v,
+                             N = N)
+stg1_3.pct_alloc = sim.summary.new(stg1_3, print = FALSE)
+
+```
+
+```{r scenario4}
+# Vector of true mean efficacies per dose (here mean percent persistence per dose)
+m4 <- c(80, 60, 40, 30, 20, 10)   # added last efficacy value for 6th dose      
+## Using nTTP
+nTTP_4 <- sim.trials.nTTP(numsims = sims,
+                          dose = d,
+                          p1 = p1,
+                          p2 = p2,
+                          K = K,
+                          coh.size = coh.size,
+                          m = m4,
+                          v = v,
+                          N = N,
+                          W = W,
+                          TOX = TOX,
+                          ntox = ntox)
+nTTP_4.pct_alloc = sim.summary.new(nTTP_4, print = FALSE)
+
+
+## Binary tox equivalent
+stg1_4 <- iAdapt::sim.trials(numsims = sims,
+                             dose = d,
+                             dose.tox = DLT_rate,
+                             p1 = p1,
+                             p2 = p2,
+                             K = K,
+                             coh.size = coh.size,
+                             m = m4,
+                             v = v,
+                             N = N)
+stg1_4.pct_alloc = sim.summary.new(stg1_4, print = FALSE)
+
+```
+
+```{r scenario5}
+# Vector of true mean efficacies per dose (here mean percent persistence per dose)
+m5 <- c(30, 60, 80, 60, 30, 10)  
+
+## Using nTTP
+nTTP_5 <- sim.trials.nTTP(numsims = sims,
+                          dose = d,
+                          p1 = p1,
+                          p2 = p2,
+                          K = K,
+                          coh.size = coh.size,
+                          m = m5,
+                          v = v,
+                          N = N,
+                          W = W,
+                          TOX = TOX,
+                          ntox = ntox)
+nTTP_5.pct_alloc = sim.summary.new(nTTP_5, print = FALSE)
+
+## Binary tox equivalent
+stg1_5 <- iAdapt::sim.trials(numsims = sims,
+                             dose = d,
+                             dose.tox = DLT_rate,
+                             p1 = p1,
+                             p2 = p2,
+                             K = K,
+                             coh.size = coh.size,
+                             m = m5,
+                             v = v,
+                             N = N)
+stg1_5.pct_alloc = sim.summary.new(stg1_5, print = FALSE)
+
+```
+
+
+
+```{r result, results=TRUE}
+
+# % of times dose is declared safe
+rbind(
+  tru_tox, 
+  DLT_rate,
+  m1,
+  nTTP_1.pct_alloc$pct.treated[, 5],
+#  stg1_1.pct_alloc$pct.treated[, 5],
+  m2,
+  nTTP_2.pct_alloc$pct.treated[, 5],
+#  stg1_2.pct_alloc$pct.treated[, 5],
+  m3,
+  nTTP_3.pct_alloc$pct.treated[, 5],
+#  stg1_3.pct_alloc$pct.treated[, 5],
+  m4,
+  nTTP_4.pct_alloc$pct.treated[, 5],
+#  stg1_4.pct_alloc$pct.treated[, 5],
+  m5,
+  nTTP_5.pct_alloc$pct.treated[, 5]
+#  stg1_5.pct_alloc$pct.treated[, 5] 
+  ) %>%
+  `rownames<-`(c(
+    "True nTTP", 
+    "True DLT rate",
+    "True efficacy",
+    "P(alloc)",
+#    "DLT",
+    "True efficacy",
+    "P(alloc)",
+#    "DLT",
+    "True efficacy",
+    "P(alloc)",
+#    "DLT",
+    "True efficacy",
+    "P(alloc)",
+#    "DLT",
+    "True efficacy",
+    "P(alloc)"
+#    "DLT"
+    )) %>%
+  knitr::kable(row.names = TRUE, 
+               col.names = 1:6,
+               caption = "Average percent dose allocation",
+               format = "html") %>%
+  kableExtra::kable_styling("striped", full_width = F) %>%
+  kableExtra::pack_rows("Scenario 1", 3, 4) %>%
+  kableExtra::pack_rows("Scenario 2", 5, 6) %>%
+  kableExtra::pack_rows("Scenario 3", 7, 8) %>%
+  kableExtra::pack_rows("Scenario 4", 9, 10) %>%
+  kableExtra::pack_rows("Scenario 5", 11, 12)
+
+
+```
+

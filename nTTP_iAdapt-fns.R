@@ -344,7 +344,7 @@ sim.summary.new <- function (sims, print = TRUE)
     est.dose1[j, ] <- c(j/100, 
                         quantile(dose.mat.a[, j], 
                                  prob = c(0.25, 0.5, 0.75), na.rm = TRUE),
-                        mean(dose.mat.a[, j]))
+                        round(mean(dose.mat.a[, j]), 2))
   }
   dose.IQR = round(est.dose1 * 100, 1)
 
@@ -360,7 +360,7 @@ sim.summary.new <- function (sims, print = TRUE)
     est.pers1[j, ] <- c((j - 1), 
                         quantile(pers.hat.a[, j], 
                                  prob = c(0.25, 0.5, 0.75), na.rm = TRUE),
-                        mean(pers.hat.a[, j]))
+                        round(mean(pers.hat.a[, j]), 2))
   }
   Y = est.pers1[-1, ]
   
