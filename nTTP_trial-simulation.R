@@ -11,6 +11,12 @@ coh.size = 3 # number pts per dose
 ntox <- 3 # Number of unique toxicities
 d <- 6 # Number of dose levels
 
+# Vector of true mean efficacies per dose (here mean percent persistence per dose)
+m <- c(5, 15, 40, 65, 80, 85)   # added last efficacy value for 6th dose                 
+# Efficacy(equal) variance per dose
+v <- rep(0.01, 6) 
+
+
 #### Define the weight Matrix
 W <- matrix(c(0.10, 0.35, 0.70, 1.00, # Burden weight for grades 1-4 for toxicity 1
               0.08, 0.23, 0.60, 0.80, # Burden weight for grades 1-4 for toxicity 2

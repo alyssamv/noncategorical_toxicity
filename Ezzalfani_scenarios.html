@@ -208,6 +208,9 @@ N &lt;- 25 # maximum number of patients
 # Efficacy(equal) variance per dose
 v &lt;- rep(0.01, 6) 
 
+K = 2 # for LRT
+
+sims = 1e3 # number of trials to simulate
 
 #### Define the weight Matrix
 W &lt;- matrix(c(0.10, 0.35, 0.70, 1.00, # Burden weight for grades 1-4 for toxicity 1
@@ -242,6 +245,129 @@ TOX[,,3] &lt;- matrix(c(0.907, 0.080, 0.008, 0.000, 0.005,
                      0.005, 0.052, 0.224, 0.372, 0.347, 
                      0.004, 0.022, 0.223, 0.345, 0.406), 
                    nrow = 6, byrow = T)</code></pre>
+<table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<caption>
+Percent declared safe
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:right;">
+1
+</th>
+<th style="text-align:right;">
+2
+</th>
+<th style="text-align:right;">
+3
+</th>
+<th style="text-align:right;">
+4
+</th>
+<th style="text-align:right;">
+5
+</th>
+<th style="text-align:right;">
+6
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+True nTTP
+</td>
+<td style="text-align:right;">
+0.015
+</td>
+<td style="text-align:right;">
+0.050
+</td>
+<td style="text-align:right;">
+0.100
+</td>
+<td style="text-align:right;">
+0.200
+</td>
+<td style="text-align:right;">
+0.270
+</td>
+<td style="text-align:right;">
+0.320
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+True DLT rate
+</td>
+<td style="text-align:right;">
+0.010
+</td>
+<td style="text-align:right;">
+0.070
+</td>
+<td style="text-align:right;">
+0.150
+</td>
+<td style="text-align:right;">
+0.280
+</td>
+<td style="text-align:right;">
+0.400
+</td>
+<td style="text-align:right;">
+0.490
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+P(safe) with nTTP
+</td>
+<td style="text-align:right;">
+1.000
+</td>
+<td style="text-align:right;">
+0.993
+</td>
+<td style="text-align:right;">
+0.954
+</td>
+<td style="text-align:right;">
+0.712
+</td>
+<td style="text-align:right;">
+0.357
+</td>
+<td style="text-align:right;">
+0.123
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+P(safe) with DLT rate
+</td>
+<td style="text-align:right;">
+1.000
+</td>
+<td style="text-align:right;">
+0.981
+</td>
+<td style="text-align:right;">
+0.915
+</td>
+<td style="text-align:right;">
+0.721
+</td>
+<td style="text-align:right;">
+0.423
+</td>
+<td style="text-align:right;">
+0.186
+</td>
+</tr>
+</tbody>
+</table>
 <table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
 <caption>
 Average percent dose allocation
@@ -350,7 +476,7 @@ True efficacy
 P(alloc)
 </td>
 <td style="text-align:right;">
-21.000
+20.000
 </td>
 <td style="text-align:right;">
 21.00
@@ -359,13 +485,13 @@ P(alloc)
 22.00
 </td>
 <td style="text-align:right;">
-20.00
+19.00
 </td>
 <td style="text-align:right;">
-12.00
+13.00
 </td>
 <td style="text-align:right;">
-5.00
+6.00
 </td>
 </tr>
 <tr grouplength="2">
@@ -401,16 +527,16 @@ True efficacy
 P(alloc)
 </td>
 <td style="text-align:right;">
-25.000
+26.000
 </td>
 <td style="text-align:right;">
-23.00
+21.00
 </td>
 <td style="text-align:right;">
-19.00
+20.00
 </td>
 <td style="text-align:right;">
-16.00
+17.00
 </td>
 <td style="text-align:right;">
 11.00
@@ -455,13 +581,13 @@ P(alloc)
 20.000
 </td>
 <td style="text-align:right;">
-21.00
+22.00
 </td>
 <td style="text-align:right;">
 22.00
 </td>
 <td style="text-align:right;">
-19.00
+18.00
 </td>
 <td style="text-align:right;">
 12.00
@@ -503,7 +629,7 @@ True efficacy
 P(alloc)
 </td>
 <td style="text-align:right;">
-28.000
+29.000
 </td>
 <td style="text-align:right;">
 22.00
@@ -566,10 +692,10 @@ P(alloc)
 17.00
 </td>
 <td style="text-align:right;">
-11.00
+10.00
 </td>
 <td style="text-align:right;">
-5.00
+4.00
 </td>
 </tr>
 </tbody>

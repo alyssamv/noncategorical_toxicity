@@ -25,6 +25,9 @@ N <- 25 # maximum number of patients
 # Efficacy(equal) variance per dose
 v <- rep(0.01, 6) 
 
+K = 2 # for LRT
+
+sims = 1e3 # number of trials to simulate
 
 #### Define the weight Matrix
 W <- matrix(c(0.10, 0.35, 0.70, 1.00, # Burden weight for grades 1-4 for toxicity 1
@@ -67,8 +70,6 @@ TOX[,,3] <- matrix(c(0.907, 0.080, 0.008, 0.000, 0.005,
 # Vector of true mean efficacies per dose (here mean percent persistence per dose)
 m1 <- c(10, 20, 30, 40, 70, 90)   # added last efficacy value for 6th dose       
 
-K = 2
-sims = 1e2
 
 ## Using nTTP
 nTTP_1 <- sim.trials.nTTP(numsims = sims,
@@ -244,6 +245,24 @@ stg1_5.pct_alloc = sim.summary.new(stg1_5, print = FALSE)
 
 
 ```{r result, results=TRUE}
+# % of times dose is declared safe
+rbind(
+  tru_tox, 
+  DLT_rate,
+  colMeans(nTTP_1$safe.d),
+  colMeans(stg1_1$safe.d)
+  ) %>%
+  `rownames<-`(c(
+    "True nTTP", 
+    "True DLT rate",
+    "P(safe) with nTTP",
+    "P(safe) with DLT rate"
+    )) %>%
+  knitr::kable(row.names = TRUE, 
+               col.names = 1:6,
+               caption = "Percent declared safe",
+               format = "html") %>%
+  kableExtra::kable_styling("striped", full_width = F) 
 
 # % of times dose is declared safe
 rbind(
