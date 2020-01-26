@@ -1,0 +1,318 @@
+---
+title: "iAdapt with nTTP under various hypotheses"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, results = FALSE, warning = FALSE, message = FALSE)
+
+source(file.path(getwd(), "nTTP_iAdapt-fns.R"))
+library(tidyverse)
+library(iAdapt)
+load(file.path(getwd(), "scenarios.RData")) # data from Du et al
+```
+
+```{r}
+p1 = c(0.30, 0.36, 0.40, 0.40) # unsafe nTTP (null hypothesis)
+p2 = c(0.05, 0.17, 0.15, 0.10) # acceptable nTTP (alternative hypothesis)
+sigma = 0.15 # variance of nTTP on each dose, assumed constant and estimated form simulated nTTP data
+tru_tox = c(0.046, 0.054, 0.018, 0.183, 0.280, 0.359) # true (approx) nTTP for each dose, taken from Sumithra's paper
+pDLT = c(0.008, 0.011, 0.064, 0.195, 0.330, 0.446)
+
+coh.size = 3 # number pts per dose
+ntox <- 3 # Number of unique toxicities
+d <- 6 # Number of dose levels
+N <- 25 # maximum number of patients
+
+# Efficacy(equal) variance per dose
+v <- rep(0.01, 6) 
+
+K = 2 # for LRT
+
+sims = 1e3 # number of trials to simulate
+
+#### Define the weight Matrix, from Sumithra's paper
+W <- matrix(c(0.5, 0.75, 1.0, 1.5, # Burden weight for grades 1-4 for toxicity 1
+              0.5, 0.75, 1.0, 1.5, # Burden weight for grades 1-4 for toxicity 2
+              0.00, 0.00, 0.5, 1), ## Burden weight for grades 1-4 for toxicity 3
+            nrow = ntox, byrow = T)
+
+#### Define array to hold toxicitiy probabilities 
+TOX <- array(NA, c(d, 5, ntox)) 
+
+# Scenario 1 = from Du et al. paper
+TOX[,,1] <- nTTP.matrix[4,1,1,1,,]
+
+TOX[,,2] <- nTTP.matrix[4,1,2,1,,]
+
+TOX[,,3] <- nTTP.matrix[4,1,3,1,,]
+
+```
+
+
+### Scenarios and nTTP hypotheses
+
+Using the scenarios from Sumithra's paper, we have the following toxicity probabilities for grades 0-4 across 3 different toxicity types:
+
+`r print(TOX)`
+
+We also have the following weight matrix:
+
+`r print(W)`
+
+Here I simulate the iAdapt design 1000 times under different sets of nTTP hypotheses
+
+* H0: p = 0.30 vs. H1: p = 0.05 (conservative)
+* H0: p = 0.36 vs. H1: p = 0.17 (approximated from above weight matrix)
+* H0: p = 0.40 vs. H1: p = 0.15 (Cody)
+* H0: p = 0.40 vs. H1: p = 0.10 
+
+We also have 5 dose-efficacy scenarios for the average nTTP across 6 doses: 
+
+`r print(tru_tox)`
+
+```{r, results=TRUE}
+data.frame("Scenario 1" = c(10, 20, 30, 40, 70, 90),
+           "Scenario 2" = c(50, 50, 50, 50, 50, 50),
+           "Scenario 3" = c(20, 50, 80, 80, 80, 80),
+           "Scenario 4" = c(80, 60, 40, 30, 20, 10),
+           "Scenario 5" = c(30, 60, 80, 60, 30, 10)) %>%
+  t %>%
+  knitr::kable(col.names = paste("Dose", 1:6))
+```
+
+
+```{r scenario1}
+# Vector of true mean efficacies per dose (here mean percent persistence per dose)
+m1 <- c(10, 20, 30, 40, 70, 90)          
+## Using nTTP
+nTTP_1 <- lapply(1:length(p2), function(i){
+  sim.trials.nTTP(numsims = sims,
+                  dose = d,
+                  p1 = p1[[i]],
+                  p2 = p2[[i]],
+                  K = K,
+                  coh.size = coh.size,
+                  m = m1,
+                  v = v,
+                  N = N,
+                  W = W,
+                  TOX = TOX,
+                  ntox = ntox)
+})
+nTTP_1.pct_alloc = lapply(1:length(p2), function(i){
+  sim.summary.new(nTTP_1[[i]], print = FALSE)
+})
+
+pct_alloc_table1 = do.call(rbind, lapply(nTTP_1.pct_alloc, function(i){
+  i$pct.treated[, 5]
+}))
+
+```
+
+
+```{r scenario2}
+# Vector of true mean efficacies per dose (here mean percent persistence per dose)
+m2 <- c(50, 50, 50, 50, 50, 50)   
+
+## Using nTTP
+## Using nTTP
+nTTP_2 <- lapply(1:length(p2), function(i){
+  sim.trials.nTTP(numsims = sims,
+                  dose = d,
+                  p1 = p1[[i]],
+                  p2 = p2[[i]],
+                  K = K,
+                  coh.size = coh.size,
+                  m = m2,
+                  v = v,
+                  N = N,
+                  W = W,
+                  TOX = TOX,
+                  ntox = ntox)
+})
+nTTP_2.pct_alloc = lapply(1:length(p2), function(i){
+  sim.summary.new(nTTP_2[[i]], print = FALSE)
+})
+
+pct_alloc_table2 = do.call(rbind, lapply(nTTP_2.pct_alloc, function(i){
+  i$pct.treated[, 5]
+}))
+
+```
+
+```{r scenario3}
+# Vector of true mean efficacies per dose (here mean percent persistence per dose)
+m3 <- c(20, 50, 80, 80, 80, 80)   # added last efficacy value for 6th dose   
+
+## Using nTTP
+nTTP_3 <- lapply(1:length(p2), function(i){
+  sim.trials.nTTP(numsims = sims,
+                  dose = d,
+                  p1 = p1[[i]],
+                  p2 = p2[[i]],
+                  K = K,
+                  coh.size = coh.size,
+                  m = m3,
+                  v = v,
+                  N = N,
+                  W = W,
+                  TOX = TOX,
+                  ntox = ntox)
+})
+nTTP_3.pct_alloc = lapply(1:length(p2), function(i){
+  sim.summary.new(nTTP_3[[i]], print = FALSE)
+})
+
+pct_alloc_table3 = do.call(rbind, lapply(nTTP_3.pct_alloc, function(i){
+  i$pct.treated[, 5]
+}))
+```
+
+```{r scenario4}
+# Vector of true mean efficacies per dose (here mean percent persistence per dose)
+m4 <- c(80, 60, 40, 30, 20, 10)   # added last efficacy value for 6th dose      
+## Using nTTP
+nTTP_4 <- lapply(1:length(p2), function(i){
+  sim.trials.nTTP(numsims = sims,
+                  dose = d,
+                  p1 = p1[[i]],
+                  p2 = p2[[i]],
+                  K = K,
+                  coh.size = coh.size,
+                  m = m4,
+                  v = v,
+                  N = N,
+                  W = W,
+                  TOX = TOX,
+                  ntox = ntox)
+})
+nTTP_4.pct_alloc = lapply(1:length(p2), function(i){
+  sim.summary.new(nTTP_4[[i]], print = FALSE)
+})
+
+pct_alloc_table4 = do.call(rbind, lapply(nTTP_4.pct_alloc, function(i){
+  i$pct.treated[, 5]
+}))
+
+```
+
+```{r scenario5}
+# Vector of true mean efficacies per dose (here mean percent persistence per dose)
+m5 <- c(30, 60, 80, 60, 30, 10)  
+
+## Using nTTP
+nTTP_5 <- lapply(1:length(p2), function(i){
+  sim.trials.nTTP(numsims = sims,
+                  dose = d,
+                  p1 = p1[[i]],
+                  p2 = p2[[i]],
+                  K = K,
+                  coh.size = coh.size,
+                  m = m5,
+                  v = v,
+                  N = N,
+                  W = W,
+                  TOX = TOX,
+                  ntox = ntox)
+})
+nTTP_5.pct_alloc = lapply(1:length(p2), function(i){
+  sim.summary.new(nTTP_5[[i]], print = FALSE)
+})
+
+pct_alloc_table5 = do.call(rbind, lapply(nTTP_5.pct_alloc, function(i){
+  i$pct.treated[, 5]
+}))
+```
+
+Hypotheses:
+
+Group 1: 0.30 vs 0.05 (conservative)
+
+Group 2: 0.36 vs 0.17 (calculated from Ezzalfani weight matrix)
+
+Group 3: 0.40 vs 0.15 (Cody)
+
+Group 4: 0.40 vs 0.10
+
+```{r result, results=TRUE}
+# % of times dose is declared safe
+pct_safe_table = do.call(rbind, lapply(nTTP_1, function(i){colMeans(i$safe.d)}))
+
+rbind(
+  tru_tox, 
+  pDLT,
+  pct_safe_table
+) %>%
+  `rownames<-`(c(
+    "True nTTP", 
+    "Pr(DLT)",
+    "P(safe) Group 1",
+    "P(safe) Group 2",
+    "P(safe) Group 3",
+    "P(safe) Group 4"
+  )) %>%
+  knitr::kable(row.names = TRUE, 
+               col.names = 1:6,
+               caption = "Percent declared safe",
+               format = "html") %>%
+  kableExtra::kable_styling("striped", full_width = F) 
+
+# % of times dose is declared safe
+rbind(
+  tru_tox, 
+  pDLT,
+  m1,
+  pct_alloc_table1,
+  m2,
+  pct_alloc_table2,
+  m3,
+  pct_alloc_table3,
+  m4,
+  pct_alloc_table4,
+  m5,
+  pct_alloc_table5
+) %>%
+  `rownames<-`(c(
+    "True nTTP", 
+    "Pr(DLT)",
+    "True efficacy",
+    "P(alloc) Group 1",
+    "P(alloc) Group 2",
+    "P(alloc) Group 3",
+    "P(alloc) Group 4",
+    "True efficacy",
+    "P(alloc) Group 1",
+    "P(alloc) Group 2",
+    "P(alloc) Group 3",
+    "P(alloc) Group 4",
+    "True efficacy",
+    "P(alloc) Group 1",
+    "P(alloc) Group 2",
+    "P(alloc) Group 3",
+    "P(alloc) Group 4",
+    "True efficacy",
+    "P(alloc) Group 1",
+    "P(alloc) Group 2",
+    "P(alloc) Group 3",
+    "P(alloc) Group 4",
+    "True efficacy",
+    "P(alloc) Group 1",
+    "P(alloc) Group 2",
+    "P(alloc) Group 3",
+    "P(alloc) Group 4"
+  )) %>%
+  knitr::kable(row.names = TRUE, 
+               col.names = 1:6,
+               caption = "Average percent dose allocation",
+               format = "html") %>%
+  kableExtra::kable_styling("striped", full_width = F) %>%
+  kableExtra::pack_rows("Scenario 1", 3, 7) %>%
+  kableExtra::pack_rows("Scenario 2", 8, 12) %>%
+  kableExtra::pack_rows("Scenario 3", 13, 17) %>%
+  kableExtra::pack_rows("Scenario 4", 18, 22) %>%
+  kableExtra::pack_rows("Scenario 5", 23, 27)
+
+
+```
+

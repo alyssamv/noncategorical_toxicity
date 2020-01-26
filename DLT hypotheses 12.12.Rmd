@@ -1,0 +1,135 @@
+---
+title: "Building hypotheses for DLT rate comparable to nTTP"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, results = TRUE, warning = FALSE, message = FALSE)
+
+source(file.path(getwd(), "nTTP_iAdapt-fns.R"))
+library(tidyverse)
+library(iAdapt)
+load(file.path(getwd(), "scenarios.RData")) # data from Du et al
+```
+
+```{r}
+p1 = 0.36 # unsafe nTTP (null hypothesis)
+p2 = 0.17 # acceptable nTTP (alternative hypothesis)
+sigma = 0.15 # variance of nTTP on each dose, assumed constant and estimated form simulated nTTP data
+tru_tox = c(0.046, 0.054, 0.018, 0.183, 0.280, 0.359) # true (approx) nTTP for each dose, taken from simulations
+DLT_rate = c(0.008, 0.011, 0.064, 0.195, 0.330, 0.446) # scenario equivalent for binary tox
+
+coh.size = 3 # number pts per dose
+ntox <- 3 # Number of unique toxicities
+d <- 6 # Number of dose levels
+N <- 25 # maximum number of patients
+
+# Efficacy(equal) variance per dose
+v <- rep(0.01, 6) 
+
+K = 2 # for LRT
+
+sims = 1e2 # number of trials to simulate
+
+#### Define the weight Matrix
+W <- matrix(c(0.5, 0.75, 1.0, 1.5, # Burden weight for grades 1-4 for toxicity 1
+              0.5, 0.75, 1.0, 1.5, # Burden weight for grades 1-4 for toxicity 2
+              0.00, 0.00, 0.5, 1), ## Burden weight for grades 1-4 for toxicity 3
+            nrow = ntox, byrow = T)
+
+#### Define array to hold toxicitiy probabilities 
+TOX <- array(NA, c(d, 5, ntox)) 
+
+# Scenario 1 = from Du et al. paper
+TOX[,,1] <- nTTP.matrix[4,1,1,1,,]
+
+TOX[,,2] <- nTTP.matrix[4,1,2,1,,]
+
+TOX[,,3] <- nTTP.matrix[4,1,3,1,,]
+
+```
+
+
+### Scenarios and nTTP hypotheses
+
+Using the scenarios from Sumithra's paper, we have the following toxicity probabilities for grades 0-4 across 3 different toxicity types:
+
+```{r}
+TOX
+```
+
+
+We also have the following weight matrix:
+
+```{r}
+W
+```
+
+
+From the weight matrix W, the nTTP hypotheses are computed as 
+
+* H0: p = 0.36
+* H1: p = 0.17
+
+
+### Constructing comparable DLT hypotheses
+
+Two possibilities:
+
+1. H0: p = P(0 DLT) vs. H1: p = P(3 DLT), or
+2. H0: p = P(0 or 1 DLT) vs. H1: p = P(2 or 3 DLT).
+
+We can define P(x DLT) as 
+
+$$P(x DLT) = \frac{\sum_{i = 1}^N \frac{\sum_{j = 1}^k P_{ij}(x DLT)}{k}}{N}$$
+
+This averages the average P(x DLT) across $k$ doses, across $N$ toxicity types. 
+
+```{r}
+## all possible toxicity grades for each toxicity type
+tox1 = tox2 = tox3 = 0:4
+## grade that determines DLT for each toxicity type
+tox_type.dlt_grade = c(3, 3, 4)
+
+## dataframe of all possible combinations of grade levels across three toxicity types
+tox.grid = expand.grid(tox1 = tox1, 
+                       tox2 = tox2, 
+                       tox3 = tox3)
+## count number of DLTs for each combination
+tox.grid = tox.grid %>%
+  ## logical for whether grade meets DLT for given tox type
+  mutate(tox1.dlt = if_else(tox1 >= tox_type.dlt_grade[[1]], 1, 0),
+         tox2.dlt = if_else(tox2 >= tox_type.dlt_grade[[2]], 1, 0),
+         tox3.dlt = if_else(tox3 >= tox_type.dlt_grade[[3]], 1, 0)) %>%
+  rowwise %>%
+  ## sum number of DLTs across tox types
+  mutate(n.dlt = sum(tox1.dlt, tox2.dlt, tox3.dlt)) %>%
+  arrange(n.dlt)
+
+## dataframe average probability of each grade across all doses, for all toxicity types
+grade.probs <- data.frame(tox = c(rep(1, 5), # toxicity type
+                                  rep(2, 5),
+                                  rep(3, 5)),
+                          grade = rep(0:4, ntox), # grades
+                          grade_prob = c(colMeans(TOX[,,1]), # average grade probs across all doses
+                                         colMeans(TOX[,,2]),
+                                         colMeans(TOX[,,3])))
+
+## add ^ probabilities to tox.grid dataframe
+tox.grid %>%
+  ## match grade probs to given grade for given tox type
+  left_join(., grade.probs[which(grade.probs$tox == 1), 2:3], by = c("tox1" = "grade")) %>%
+  left_join(., grade.probs[which(grade.probs$tox == 2), 2:3], by = c("tox2" = "grade")) %>% 
+  left_join(., grade.probs[which(grade.probs$tox == 3), 2:3], by = c("tox3" = "grade")) %>% 
+  ## calculate average prob of grade combo
+  rowwise %>%
+  mutate(avg.prob = mean(c(grade_prob.x, grade_prob.y, grade_prob))) %>% 
+  ## calculate average prob of number of dlts
+  group_by(n.dlt) %>%
+  summarise(p_n.dlt = mean(avg.prob))
+```
+
+So we have: 
+
+1. H0: p = 0.29 vs H1: p = 0.05
+2. H0: p = 0.49 vs H1: p = 0.17

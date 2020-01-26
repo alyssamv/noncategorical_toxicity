@@ -13,11 +13,11 @@ load(file.path(getwd(), "scenarios.RData")) # data from Du et al
 ```
 
 ```{r, echo=TRUE}
-p1 = 0.35 # unsafe nTTP (null hypothesis)
-p2 = 0.1 # acceptable nTTP (alternative hypothesis)
+p1 = 0.36 # unsafe nTTP (null hypothesis)
+p2 = 0.17 # acceptable nTTP (alternative hypothesis)
 sigma = 0.15 # variance of nTTP on each dose, assumed constant and estimated form simulated nTTP data
-tru_tox = c(0.015, 0.05, 0.1, 0.2, 0.27, 0.32) # true (approx) nTTP for each dose, taken from simulations
-DLT_rate = c(0.01, 0.07, 0.15, 0.28, 0.40, 0.49) # scenario equivalent for binary tox
+tru_tox = c(0.046, 0.054, 0.018, 0.183, 0.280, 0.359) # true (approx) nTTP for each dose, taken from simulations
+DLT_rate = c(0.008, 0.011, 0.064, 0.195, 0.330, 0.446) # scenario equivalent for binary tox
 
 coh.size = 3 # number pts per dose
 ntox <- 3 # Number of unique toxicities
@@ -29,7 +29,7 @@ v <- rep(0.01, 6)
 
 K = 2 # for LRT
 
-sims = 1e3 # number of trials to simulate
+sims = 1e2 # number of trials to simulate
 
 #### Define the weight Matrix
 W <- matrix(c(0.5, 0.75, 1.0, 1.5, # Burden weight for grades 1-4 for toxicity 1

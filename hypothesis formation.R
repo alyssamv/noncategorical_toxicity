@@ -4,9 +4,9 @@ source(file.path(getwd(), "source fns.R"))
 
 ntox <- 3 #Number of unique toxicities
 #### Define the weight Matrix ####
-W <- matrix(c(0, 0.10, 0.35, 0.70, 1.00, #Burden weight for grades 0-4 for toxicity 1
-              0, 0.08, 0.23, 0.60, 0.80, #Burden weight for grades 0-4 for toxicity 2
-              0, 0.00, 0.15, 0.45, 0.80), ##Burden weight for grades 0-4 for toxicity 3
+W <- matrix(c(0, 0.5, 0.75, 1.0, 1.5, # Burden weight for grades 1-4 for toxicity 1
+              0, 0.5, 0.75, 1.0, 1.5, # Burden weight for grades 1-4 for toxicity 2
+              0, 0.00, 0.00, 0.5, 1), ## Burden weight for grades 1-4 for toxicity 3
             nrow = ntox, byrow = T)
 
 thetamax = sum(W[,ncol(W)])
